@@ -41,8 +41,8 @@ public class MapGenerator : MonoBehaviour
         }
         if (textureData != null)
         {
-            textureData.OnValuesUpdated -= OnTextureValueUpdated;
-            textureData.OnValuesUpdated += OnTextureValueUpdated;
+            textureData.OnValuesUpdated -= OnValueUpdated;
+            textureData.OnValuesUpdated += OnValueUpdated;
         }
 
     }
@@ -51,12 +51,8 @@ public class MapGenerator : MonoBehaviour
         if (!Application.isPlaying)
         {
             DrawMapInEditor();
+            textureData.ApplyToMaterial(terrainMaterial);
         }
-    }
-
-    void OnTextureValueUpdated()
-    {
-        textureData.ApplyToMaterial(terrainMaterial);
     }
 
     public int mapMeshChunksize
@@ -156,6 +152,7 @@ public class MapGenerator : MonoBehaviour
                 }
             }   
         }
+        textureData.UpdateMeshHeights(terrainMaterial,terrainData.minHeight,terrainData.maxHeight);
         return new MapData(noiseMap);
     }
 

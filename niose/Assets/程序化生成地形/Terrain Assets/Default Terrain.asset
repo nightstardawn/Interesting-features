@@ -15,8 +15,8 @@ MonoBehaviour:
   autoUpdate: 1
   uniformScale: 2.5
   useFlatShading: 0
-  useFalloffMap: 1
-  meshHeightMultiplier: 87.4
+  useFalloffMap: 0
+  meshHeightMultiplier: 88.95
   meshHeightCurve:
     serializedVersion: 2
     m_Curve:
