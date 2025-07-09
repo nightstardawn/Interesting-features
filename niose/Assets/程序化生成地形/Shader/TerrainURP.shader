@@ -8,72 +8,76 @@ Shader "Custom/Terrain"
         Tags
         {
             "RenderType"="Opaque"
-            "RenderPipeline"="UniversalPipeline"
-            "Queue"="Geometry"
+            "RenderPipeline" = "UniversalPipeline"
+            "Queue" = "Geometry"
         }
         LOD 200
 
         Pass
         {
-            Name "SimpleColorPass"
-            Tags { "LightMode"="SRPDefaultUnlit" }
+            Tags { "LightMode" = "UniversalForward" }
             
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            static const int maxColourCount = 8;
+            static const float epsilon = 1E-4;
+
+            CBUFFER_START(UnityPerMaterial)
+                int _BaseColorCount;
+                float4 _BaseColors[maxColourCount];
+                float _BaseStartHeights[maxColourCount];
+                float _BaseBlends[maxColourCount];
+                float _MinHeight;
+                float _MaxHeight;
+            CBUFFER_END
 
             struct Attributes
             {
-                float4 positionOS   : POSITION;
+                float4 positionOS : POSITION;
             };
 
             struct Varyings
             {
-                float4 positionHCS  : SV_POSITION;
-                float3 worldPos     : TEXCOORD0;
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
             };
 
-            // 材质属性
-            CBUFFER_START(UnityPerMaterial)
-                float _MinHeight;
-                float _MaxHeight;
-                float3 _BaseColors[8];
-                float _BaseStartHeights[8];
-                int _BaseColorCount;
-            CBUFFER_END
-            
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                float3 worldPos = TransformObjectToWorld(IN.positionOS.xyz);
-                OUT.positionHCS = TransformWorldToHClip(worldPos);
-                OUT.worldPos = worldPos;
+                VertexPositionInputs vertexInput = GetVertexPositionInputs(IN.positionOS.xyz);
+                OUT.positionCS = vertexInput.positionCS;
+                OUT.positionWS = vertexInput.positionWS;
                 return OUT;
             }
             
             float inverseLerp(float a, float b, float value) {
                 return saturate((value - a) / (b - a));
             }
-            
+
             half4 frag(Varyings IN) : SV_Target
             {
-                // 计算高度百分比
-                float heightPercent = inverseLerp(_MinHeight, _MaxHeight, IN.worldPos.y);
-                half3 finalColor = 0;
+                float heightPercent = inverseLerp(_MinHeight, _MaxHeight, IN.positionWS.y); 
+                float3 color = float3(0, 0, 0);
                 
-                // 根据高度混合颜色
-                for (int i = 0; i < _BaseColorCount; i++) 
+                for (int i = 0; i < _BaseColorCount; i++)
                 {
-                    // 当前高度高于起始高度时绘制该颜色
-                    float drawStrength = saturate(sign(heightPercent - _BaseStartHeights[i]));
-                    finalColor = finalColor * (1 - drawStrength) + _BaseColors[i] * drawStrength;
+                    float drawStrength = inverseLerp(
+                        -_BaseBlends[i]/2 - epsilon, 
+                        _BaseBlends[i]/2, 
+                        heightPercent - _BaseStartHeights[i]
+                    );
+                    color = color * (1 - drawStrength) + _BaseColors[i].rgb * drawStrength;
                 }
                 
-                return half4(finalColor, 1.0);
+                return half4(color, 1.0);
             }
             ENDHLSL
         }
     }
-    FallBack "Universal Render Pipeline/Simple Lit"
+    FallBack "Packages/com.unity.render-pipelines.universal/FallbackError"
 }
