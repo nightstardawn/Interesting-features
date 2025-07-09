@@ -2,8 +2,7 @@ Shader "Custom/Terrain"
 {
     Properties
     {
-        _NoiseTex("Noise Texture", 2D) = "white" {}
-        _NoiseScale("Noise Scale", Float) = 0.1
+        // 属性保持空，由脚本控制
     }
     SubShader
     {
@@ -18,9 +17,6 @@ Shader "Custom/Terrain"
         Pass
         {
             Tags { "LightMode" = "UniversalForward" }
-            // 添加深度写入和光照设置
-            ZWrite On
-            Cull Back
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -29,35 +25,35 @@ Shader "Custom/Terrain"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            static const int maxColourCount = 8;
+            static const int maxLayerCount = 8;
             static const float epsilon = 1E-4;
+
+            // 纹理数组声明
+            TEXTURE2D_ARRAY(_BaseTextures);
+            SAMPLER(sampler_BaseTextures);
 
             CBUFFER_START(UnityPerMaterial)
                 int _LayerCount;
-                float4 _BaseColors[maxColourCount];
-                float _BaseStartHeights[maxColourCount];
-                float _BaseBlends[maxColourCount];
+                float3 _BaseColors[maxLayerCount];
+                float _BaseStartHeights[maxLayerCount];
+                float _BaseBlends[maxLayerCount];
+                float _BaseColourStrength[maxLayerCount];
+                float _BaseTextureScales[maxLayerCount];
                 float _MinHeight;
                 float _MaxHeight;
-                
-                // 添加法线纹理支持
-                sampler2D _NoiseTex;
-                float _NoiseScale;
             CBUFFER_END
 
             struct Attributes
             {
                 float4 positionOS : POSITION;
-                float3 normalOS : NORMAL; // 添加法线输入
-                float2 uv : TEXCOORD0; // 添加纹理坐标
+                float3 normalOS : NORMAL;
             };
 
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
-                float3 normalWS : TEXCOORD1; // 添加世界空间法线
-                float2 uv : TEXCOORD2; // 添加纹理坐标输出
+                float3 normalWS : TEXCOORD1;
             };
 
             Varyings vert(Attributes IN)
@@ -66,58 +62,79 @@ Shader "Custom/Terrain"
                 VertexPositionInputs vertexInput = GetVertexPositionInputs(IN.positionOS.xyz);
                 OUT.positionCS = vertexInput.positionCS;
                 OUT.positionWS = vertexInput.positionWS;
-                OUT.uv = IN.uv; // 传递纹理坐标
-                
-                // 计算世界空间法线
                 OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
-                
-                // 添加高度偏移以解决深度冲突
-                #if defined(UNITY_REVERSED_Z)
-                    OUT.positionCS.z -= 0.0001;
-                #else
-                    OUT.positionCS.z += 0.0001;
-                #endif
-                
                 return OUT;
             }
             
+            // 与原Shader完全相同的函数
             float inverseLerp(float a, float b, float value) {
                 return saturate((value - a) / (b - a));
+            }
+            
+            // 直接移植的三平面贴图函数
+            float3 triplanar(float3 worldPos, float scale, float3 blendAxes, int textureIndex) {
+                float3 scaledWorldPos = worldPos / scale;
+                
+                // X轴投影
+                float3 xProjection = SAMPLE_TEXTURE2D_ARRAY(
+                    _BaseTextures, sampler_BaseTextures, 
+                    float2(scaledWorldPos.y, scaledWorldPos.z), textureIndex).rgb * blendAxes.x;
+                    
+                // Y轴投影
+                float3 yProjection = SAMPLE_TEXTURE2D_ARRAY(
+                    _BaseTextures, sampler_BaseTextures, 
+                    float2(scaledWorldPos.x, scaledWorldPos.z), textureIndex).rgb * blendAxes.y;
+                    
+                // Z轴投影
+                float3 zProjection = SAMPLE_TEXTURE2D_ARRAY(
+                    _BaseTextures, sampler_BaseTextures, 
+                    float2(scaledWorldPos.x, scaledWorldPos.y), textureIndex).rgb * blendAxes.z;
+                
+                return xProjection + yProjection + zProjection;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
+                // 计算高度百分比
                 float heightPercent = inverseLerp(_MinHeight, _MaxHeight, IN.positionWS.y); 
-                float3 color = float3(0, 0, 0);
                 
-                // 添加简单的高度纹理扰动
-                float heightNoise = tex2D(_NoiseTex, IN.positionWS.xz * _NoiseScale).r;
-                heightPercent += (heightNoise - 0.5) * 0.1;
+                // 计算法线混合权重
+                float3 blendAxes = abs(IN.normalWS);
+                blendAxes /= (blendAxes.x + blendAxes.y + blendAxes.z);
                 
+                float3 albedo = float3(0, 0, 0);
+                
+                // 图层混合循环
                 for (int i = 0; i < _LayerCount; i++)
                 {
-                    // 添加图层混合抗锯齿
-                    float blendRange = max(_BaseBlends[i], 0.01);
+                    // 计算图层强度
                     float drawStrength = inverseLerp(
-                        -blendRange/2 - epsilon, 
-                        blendRange/2, 
+                        -_BaseBlends[i]/2 - epsilon, 
+                        _BaseBlends[i]/2, 
                         heightPercent - _BaseStartHeights[i]
                     );
                     
-                    // 添加颜色混合平滑过渡
-                    color = color * (1 - smoothstep(0, 1, drawStrength)) + 
-                            _BaseColors[i].rgb * smoothstep(0, 1, drawStrength);
+                    // 基础颜色
+                    float3 baseColour = _BaseColors[i] * _BaseColourStrength[i];
+                    
+                    // 纹理颜色（三平面映射）
+                    float3 textureColour = triplanar(
+                        IN.positionWS, 
+                        _BaseTextureScales[i], 
+                        blendAxes, 
+                        i
+                    ) * (1 - _BaseColourStrength[i]);
+                    
+                    // 混合当前图层
+                    albedo = albedo * (1 - drawStrength) + (baseColour + textureColour) * drawStrength;
                 }
                 
-                // 添加基础光照计算
+                // 基础光照（仅主光源）
                 Light mainLight = GetMainLight();
-                float3 normal = normalize(IN.normalWS);
-                float3 lighting = saturate(dot(normal, mainLight.direction)) * mainLight.color;
-                lighting += _GlossyEnvironmentColor.rgb * 0.1; // 环境光基础
+                float3 diffuse = saturate(dot(IN.normalWS, mainLight.direction)) * mainLight.color;
                 
-                // 应用光照并确保完全不透明
-                half4 finalColor = half4(color * lighting, 1.0);
-                return finalColor;
+                // 最终颜色输出
+                return half4(albedo * diffuse, 1.0);
             }
             ENDHLSL
         }
