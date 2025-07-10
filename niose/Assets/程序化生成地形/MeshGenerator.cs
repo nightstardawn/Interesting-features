@@ -2,6 +2,11 @@ using UnityEngine;
 
 public static class MeshGenerator
 {
+    public const int numSupportedLODs = 5;
+    public const int numSupportedChunkSizes = 9;
+    public const int numssupportedFlatshadedSizes = 3;
+    public static readonly int[] supportedChunkSizes = {48, 72,96, 120, 144,168, 192, 216, 240};
+    public static readonly int[] supportedFlatshadedSizes = {48, 72,96};
     public static MeshData GenerateTerrainMesh(float[,] heightMap,float heightMultiplier,AnimationCurve heightCurve,int levelOfDetail,bool useFlatShading)
     {
         AnimationCurve _heightCurve = new AnimationCurve(heightCurve.keys);

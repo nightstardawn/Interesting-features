@@ -18,9 +18,12 @@ public class MapGenerator : MonoBehaviour
     public TextureData textureData;
     
     public Material terrainMaterial;
-    
-    [Range(0,6)]
-    public int editorPreviewLOD;
+
+    [Range(0,MeshGenerator.numSupportedChunkSizes - 1)]
+    public int chunkSizeIndex;
+    [Range(0,MeshGenerator.numssupportedFlatshadedSizes - 1)]
+    public int flatShadedChunkSizeIndex;
+    [Range(0,MeshGenerator.numSupportedLODs - 1)] public int editorPreviewLOD;
     
     float[,] falloffMap;
     
@@ -67,9 +70,9 @@ public class MapGenerator : MonoBehaviour
         get
         {
             if (terrainData.useFlatShading)
-                return 95;
+                return MeshGenerator.supportedFlatshadedSizes[flatShadedChunkSizeIndex] - 1;
             else
-                return 239;
+                return MeshGenerator.supportedChunkSizes[chunkSizeIndex] - 1;
             
         }
     }
