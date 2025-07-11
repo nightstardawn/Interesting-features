@@ -17,7 +17,7 @@ public class TerrainChunk
         LODInfo[] detailLevels;
         LODMesh[] lodMeshes;
         LODMesh collisionLODMesh;
-        int colliderIndex;
+        int colliderLODIndex;
         
         HeightMap heightMap;
         bool heightMapReceived;
@@ -34,7 +34,7 @@ public class TerrainChunk
         {
             this.coord = coord;
             this.detailLevels = detailLevels;
-            this.colliderIndex = colliderLODIndex;
+            this.colliderLODIndex = colliderLODIndex;
             this.heightMapSettings = heightMapSettings;
             this.meshSettings = meshSettings;
             this.viewer = viewer;
@@ -66,8 +66,6 @@ public class TerrainChunk
             }
 
             maxViewDst = detailLevels[detailLevels.Length - 1].visibleDstThreshold;
-            
-            
         }
 
         public void Load()
@@ -104,7 +102,7 @@ public class TerrainChunk
                             break;
                     }
 
-                    if (previousLODIndex != lodIndex)
+                    if (lodIndex != previousLODIndex)
                     {
                         LODMesh lodMesh = lodMeshes[lodIndex];
                         if (lodMesh.hasMesh)
@@ -135,18 +133,20 @@ public class TerrainChunk
             {
                 float sqrDstFromViewerToEdge = bounds.SqrDistance(viewerPosition);
 
-                if (sqrDstFromViewerToEdge < detailLevels[colliderIndex].SqrvisibleDstThreshold)
+                if (sqrDstFromViewerToEdge < detailLevels[colliderLODIndex].SqrvisibleDstThreshold)
                 {
-                    if (!lodMeshes[colliderIndex].hasRequestedMesh)
+                    if (!lodMeshes [colliderLODIndex].hasRequestedMesh) 
                     {
-                        lodMeshes[colliderIndex].RequestMesh(heightMap,meshSettings);
+                        lodMeshes [colliderLODIndex].RequestMesh (heightMap, meshSettings);
                     }
                 }
             
                 if (sqrDstFromViewerToEdge <= collidsionGenerationDistanceThreshold * collidsionGenerationDistanceThreshold)
                 {
-                    if(lodMeshes[colliderIndex].hasMesh)
-                        meshCollider.sharedMesh = lodMeshes[colliderIndex].mesh;
+                    if (lodMeshes [colliderLODIndex].hasMesh) {
+                        meshCollider.sharedMesh = lodMeshes [colliderLODIndex].mesh;
+                        hasSetCollider = true;
+                    }
                 }   
             }
         }

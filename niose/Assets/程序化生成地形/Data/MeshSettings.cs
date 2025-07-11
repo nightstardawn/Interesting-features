@@ -17,7 +17,7 @@ public class MeshSettings : UpdatableData
     [Range(0,numsSupportedFlatshadedSizes - 1)] public int flatShadedChunkSizeIndex;
     
     // 在 LOD = 0 时渲染的每行网格的顶点数,包含最终网格中用于计算法时排除的 2 个额外顶点
-    public int numVertsPerLine => supportedChunkSizes[(useFlatShading) ? flatShadedChunkSizeIndex : chunkSizeIndex] - 1 + 2;
+    public int numVertsPerLine => supportedChunkSizes[(useFlatShading) ? flatShadedChunkSizeIndex : chunkSizeIndex] + 5;
 
     public float meshWorldSize => (numVertsPerLine - 1 - 2) * meshScale;// 排除 2 个额外顶点
 }
