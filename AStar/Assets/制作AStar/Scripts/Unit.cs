@@ -6,19 +6,19 @@ public class Unit : MonoBehaviour
 {
     public Transform target;
     public float Speed;
-    Vector3[] path;
-    int targetIndex;
-
+    public float turnDst = 5;
+    public float turnSpeed = 10;
+    private Path path;
     private void Start()
     {
         PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
     }
 
-    private void OnPathFound(Vector3[] newPath, bool success)
+    private void OnPathFound(Vector3[] wayPoint, bool success)
     {
         if (success)
         {
-            path = newPath;
+            path = new Path(wayPoint,transform.position,turnDst);
             StopCoroutine("");
             StartCoroutine("FollowPath");
         }
@@ -26,19 +26,29 @@ public class Unit : MonoBehaviour
 
     IEnumerator FollowPath()
     {
-        Vector3 currentWaypoint = path[0];
-        while (true)
+        bool followingPath = true;
+        int pathIndex = 0;
+        transform.LookAt(path.lookPoints[pathIndex]);
+        while (followingPath)
         {
-            if (transform.position == currentWaypoint)
+            Vector2 pos2D = new Vector2(transform.position.x, transform.position.z);
+            while (path.turnBoundaries[pathIndex].HasCrossedLine(pos2D))
             {
-                targetIndex++;
-                if (targetIndex >= path.Length)
+                if (pathIndex == path.finishLineIndex)
                 {
-                    yield break;
+                    followingPath = false;
+                    break;
                 }
-                currentWaypoint = path[targetIndex];
+                else
+                    pathIndex++;
             }
-            transform.position = Vector3.MoveTowards(transform.position, currentWaypoint, Speed * Time.deltaTime);
+
+            if (followingPath)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
+                transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+                transform.Translate(Vector3.forward * Time.deltaTime * Speed,Space.Self);
+            }
             yield return null;
         }
     }
@@ -47,17 +57,7 @@ public class Unit : MonoBehaviour
     {
         if (path != null)
         {
-            for (int i = targetIndex; i < path.Length; i++)
-            {
-                Gizmos.color = Color.black;
-                Gizmos.DrawCube(path[i],Vector3.one);
-                if (i == targetIndex)
-                {
-                    Gizmos.DrawLine(transform.position, path[i]);
-                }else{
-                    Gizmos.DrawLine(path[i - 1], path[i]);
-                }
-            }
+            path.DrawWithGizmos();
         }
     } 
 }
