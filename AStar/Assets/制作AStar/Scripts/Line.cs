@@ -48,4 +48,12 @@ public struct Line
         Vector3 lineCentre = new Vector3(pointOnLine_1.x,0,pointOnLine_1.y) + Vector3.up;
         Gizmos.DrawLine(lineCentre - lineDir * length / 2f, lineCentre + lineDir * length / 2);
     }
+
+    public float DistanceFormPoint(Vector2 p)
+    {
+        float yInterceptPerpendicular = p.y - gradientPerpendicular * p.x;
+        float intersectX = (yInterceptPerpendicular - y_intercept) / (gradient - gradientPerpendicular);
+        float intersectY = gradient * intersectX + y_intercept;
+        return Vector2.Distance(p,new Vector2(intersectX, intersectY));
+    }
 }

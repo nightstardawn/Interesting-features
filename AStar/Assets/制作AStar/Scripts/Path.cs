@@ -5,8 +5,9 @@ public class Path
     public readonly Vector3[] lookPoints;
     public readonly Line[] turnBoundaries;
     public readonly int finishLineIndex;
+    public readonly int slowDownIndex;
 
-    public Path(Vector3[] waypoints, Vector3 startPos, float turnDistance)
+    public Path(Vector3[] waypoints, Vector3 startPos, float turnDistance,float stoppingDistance)
     {
         lookPoints = waypoints;
         turnBoundaries = new Line[lookPoints.Length];
@@ -20,6 +21,17 @@ public class Path
             Vector2 turnBoundaryPoint = (i == finishLineIndex) ? currentPoint : currentPoint - dirToCurrentPoint * turnDistance;
             turnBoundaries[i] = new Line(turnBoundaryPoint, previousPoint - dirToCurrentPoint * turnDistance);
             previousPoint = turnBoundaryPoint;
+        }
+
+        float dstFromEndPoint = 0;
+        for (int i = lookPoints.Length - 1; i >= 0; i--)
+        {
+            dstFromEndPoint += Vector3.Distance(lookPoints[i], lookPoints[i - 1]);
+            if (dstFromEndPoint > stoppingDistance)
+            {
+                slowDownIndex = i;
+                break;
+            }
         }
     }
 

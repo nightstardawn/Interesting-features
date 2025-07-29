@@ -10,6 +10,7 @@ public class Unit : MonoBehaviour
     public float Speed;
     public float turnDst = 5;
     public float turnSpeed = 10;
+    public float stoppingDst = 10;
     private Path path;
 
     private void Start()
@@ -21,7 +22,7 @@ public class Unit : MonoBehaviour
     {
         if (success)
         {
-            path = new Path(wayPoint,transform.position,turnDst);
+            path = new Path(wayPoint,transform.position,turnDst,stoppingDst);
             StopCoroutine("FollowPath");
             StartCoroutine("FollowPath");
         }
@@ -50,6 +51,7 @@ public class Unit : MonoBehaviour
     {
         bool followingPath = true;
         int pathIndex = 0;
+        float speedPercent = 1;
         transform.LookAt(path.lookPoints[pathIndex]);
         while (followingPath)
         {
@@ -67,9 +69,18 @@ public class Unit : MonoBehaviour
 
             if (followingPath)
             {
+                if(pathIndex == path.slowDownIndex && stoppingDst > 0)
+                {
+                    speedPercent = Mathf.Clamp01(path.turnBoundaries[path.finishLineIndex].DistanceFormPoint(pos2D) /
+                                                 stoppingDst);
+                    if(speedPercent < 0.01f)
+                        followingPath = false;
+
+                }
+                
                 Quaternion targetRotation = Quaternion.LookRotation(path.lookPoints[pathIndex] - transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
-                transform.Translate(Vector3.forward * Time.deltaTime * Speed,Space.Self);
+                transform.Translate(Vector3.forward * Time.deltaTime * Speed * speedPercent,Space.Self);
             }
             yield return null;
         }
