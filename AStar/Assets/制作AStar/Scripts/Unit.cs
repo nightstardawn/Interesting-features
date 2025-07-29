@@ -4,14 +4,17 @@ using UnityEngine;
 
 public class Unit : MonoBehaviour
 {
+    const float minPathUpdateTime = 0.2f;
+    const float pathUpdateMoveThreshold = 0.5f;
     public Transform target;
     public float Speed;
     public float turnDst = 5;
     public float turnSpeed = 10;
     private Path path;
+
     private void Start()
     {
-        PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
+        StartCoroutine(UpadatePath());
     }
 
     private void OnPathFound(Vector3[] wayPoint, bool success)
@@ -19,11 +22,30 @@ public class Unit : MonoBehaviour
         if (success)
         {
             path = new Path(wayPoint,transform.position,turnDst);
-            StopCoroutine("");
+            StopCoroutine("FollowPath");
             StartCoroutine("FollowPath");
         }
     }
 
+    IEnumerator UpadatePath()
+    {
+        if (Time.timeSinceLevelLoad > .3f)
+        {
+            yield return new WaitForSeconds(0.3f);
+        }
+        PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
+        float sqrMoveThreshold = pathUpdateMoveThreshold * pathUpdateMoveThreshold;
+        Vector3 targetOldPos = target.position;
+        while (true)
+        {
+            yield return new WaitForSeconds(minPathUpdateTime);
+            if ((target.position - targetOldPos).sqrMagnitude > sqrMoveThreshold)
+            {
+                PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
+                targetOldPos = target.position;
+            }
+        }
+    }
     IEnumerator FollowPath()
     {
         bool followingPath = true;
