@@ -58,6 +58,7 @@ public class Pathfinding:MonoBehaviour
         if (pathSuccess)
         {
             waypoints = RetracePath(startNode, targetNode);
+            pathSuccess = waypoints.Length > 0;
         }
         callback(new PathResult(waypoints, pathSuccess, request.callback));
     }
