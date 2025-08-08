@@ -12,5 +12,9 @@
 ![AStar的基本实现](https://github.com/nightstardawn/Interesting-features/blob/main/Images/AStar1.png)
 ![AStar的基本实现可视化](https://github.com/nightstardawn/Interesting-features/blob/main/Images/AStar2.png)
 
+## SAT碰撞检测
+
+![SAT碰撞检测](https://github.com/nightstardawn/Interesting-features/blob/main/Images/SATCollision.png)
+
 - Unity版本: 2022.3.52f1
 - 渲染管线为URP
